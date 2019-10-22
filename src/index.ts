@@ -164,24 +164,7 @@ async function main() {
 
     console.table(testResults);
 
-    performance.mark("diff-pairs-start");
-
     const RUNS = 1000;
-    const results = [];
-
-    for (let i = 0; i < RUNS; i++) {
-      results.push(proxiedWorker.textWidths(kerningTests, FONT));
-    }
-    await Promise.all(results);
-
-    performance.mark("diff-pairs-end");
-    const diffPairsMeasurement = performance.measure(
-      "Diff Paris",
-      "diff-pairs-start",
-      "diff-pairs-end"
-    );
-
-    console.log("Measure Diff Pairs", diffPairsMeasurement.duration);
 
     // Local
 
@@ -220,6 +203,24 @@ async function main() {
     );
 
     console.log("Measure Baseline", baselineMeasurement.duration);
+
+    // Web Workers
+
+    performance.mark("diff-pairs-start");
+    const tests = [];
+    for (let i = 0; i < RUNS; i++) {
+      tests.push(...kerningTests);
+    }
+    await proxiedWorker.textWidths(tests, FONT);
+
+    performance.mark("diff-pairs-end");
+    const diffPairsMeasurement = performance.measure(
+      "Diff Paris",
+      "diff-pairs-start",
+      "diff-pairs-end"
+    );
+
+    console.log("Measure Diff Pairs", diffPairsMeasurement.duration);
   } catch (error) {
     console.error(error);
   }
