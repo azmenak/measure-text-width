@@ -1,0 +1,19 @@
+{
+  "name": "web-worker-text-widths",
+  "version": "1.0.0",
+  "main": "index.js",
+  "license": "MIT",
+  "dependencies": {
+    "comlink": "^4.0.5",
+    "parcel-bundler": "^1.12.4"
+  },
+  "devDependencies": {
+    "typescript": "^3.6.4"
+  },
+  "browserslist": [
+    "last 1 Chrome version"
+  ],
+  "scripts": {
+    "start": "parcel src/index.html --hmr-port 1235"
+  }
+}
