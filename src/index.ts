@@ -78,11 +78,52 @@ const measurementKerning = performance.measure(
 );
 console.log("Measure Kerning", measurementKerning.duration);
 
-const worker = new Worker("./worker.ts");
-console.log(worker);
-const proxiedWorker = Comlink.wrap(worker);
+type Dictionary<T = any> = { [key: string]: T };
 
-console.log(proxiedWorker);
+interface KerningPair {
+  naive: number;
+  width: number;
+  diff: number;
+}
+
+const asciiMaps: Dictionary<Dictionary<number>> = {
+  [FONT]: ascii
+};
+const kerningPairMaps: Dictionary<Dictionary<KerningPair>> = {
+  [FONT]: kerningPairs
+};
+
+function textWidth(rawText: string, font: string): number {
+  if (!asciiMaps[font]) {
+    throw new Error(`Missing ascii map for font "${font}"`);
+  }
+
+  if (!kerningPairMaps[font]) {
+    throw new Error(`Missing kerning pair map for font "${font}"`);
+  }
+
+  const text = rawText.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+  const ascii = asciiMaps[font];
+  const kerningPairs = kerningPairMaps[font];
+
+  let naiveCalculatedWidth = 0;
+  let kerningDiff = 0;
+  for (let i = 0; i < text.length; i++) {
+    naiveCalculatedWidth += ascii[text[i]];
+    if (i <= text.length - 2) {
+      const pair = `${text[i]}${text[i + 1]}`;
+      const kerning = kerningPairs[pair];
+      if (kerning) {
+        kerningDiff += kerning.diff;
+      }
+    }
+  }
+
+  return naiveCalculatedWidth - kerningDiff;
+}
+
+const worker = new Worker("./worker.ts");
+const proxiedWorker = Comlink.wrap(worker);
 
 const kerningTests = [
   "EMULATION",
@@ -109,61 +150,79 @@ async function main() {
     await proxiedWorker.updateAsciiMap(FONT, ascii);
     await proxiedWorker.updateKerningMap(FONT, kerningPairs);
 
-    const results = await proxiedWorker.textWidths(kerningTests, FONT);
-    console.log(results);
+    const testResults = {};
+    for (const test of kerningTests) {
+      const actual = context.measureText(test).width;
+      const naive = naiveCalculatedWidth(test);
+      const diff = await proxiedWorker.textWidth(test, FONT);
+
+      testResults[test] = {
+        naive: actual - naive,
+        diff: actual - diff
+      };
+    }
+
+    console.table(testResults);
+
+    performance.mark("diff-pairs-start");
+
+    const RUNS = 1000;
+    const results = [];
+
+    for (let i = 0; i < RUNS; i++) {
+      results.push(proxiedWorker.textWidths(kerningTests, FONT));
+    }
+    await Promise.all(results);
+
+    performance.mark("diff-pairs-end");
+    const diffPairsMeasurement = performance.measure(
+      "Diff Paris",
+      "diff-pairs-start",
+      "diff-pairs-end"
+    );
+
+    console.log("Measure Diff Pairs", diffPairsMeasurement.duration);
+
+    // Local
+
+    performance.mark("local-start");
+
+    for (let i = 0; i < RUNS; i++) {
+      for (const test of kerningTests) {
+        textWidth(test, FONT);
+      }
+    }
+
+    performance.mark("local-end");
+    const localMeasurement = performance.measure(
+      "Local",
+      "local-start",
+      "local-end"
+    );
+
+    console.log("Local Baseline", localMeasurement.duration);
+
+    // Baseline
+
+    performance.mark("baseline-start");
+
+    for (let i = 0; i < RUNS; i++) {
+      for (const test of kerningTests) {
+        context.measureText(test);
+      }
+    }
+
+    performance.mark("baseline-end");
+    const baselineMeasurement = performance.measure(
+      "Baseline",
+      "baseline-start",
+      "baseline-end"
+    );
+
+    console.log("Measure Baseline", baselineMeasurement.duration);
   } catch (error) {
     console.error(error);
   }
 }
 
 main();
-
-// const testResults = {};
-// for (const test of kerningTests) {
-//   const actual = context.measureText(test).width;
-//   const naive = naiveCalculatedWidth(test);
-//   const diff = kerningDiffPairs(test);
-
-//   testResults[test] = {
-//     naive: actual - naive,
-//     diff: actual - diff
-//   };
-// }
-
-// console.table(testResults);
-
-// performance.mark("diff-pairs-start");
-
-// for (let i = 0; i < 1; i++) {
-//   for (const test of kerningTests) {
-//     kerningDiffPairs(test);
-//   }
-// }
-
-// performance.mark("diff-pairs-end");
-// const diffPairsMeasurement = performance.measure(
-//   "Diff Paris",
-//   "diff-pairs-start",
-//   "diff-pairs-end"
-// );
-
-// console.log("Measure Diff Pairs", diffPairsMeasurement.duration);
-
-// Baseline
-
-// performance.mark("baseline-start");
-
-// for (let i = 0; i < 1; i++) {
-//   for (const test of kerningTests) {
-//     context.measureText(test);
-//   }
-// }
-
-// performance.mark("baseline-end");
-// const baselineMeasurement = performance.measure(
-//   "Baseline",
-//   "baseline-start",
-//   "baseline-end"
-// );
-
-// console.log("Measure Baseline", baselineMeasurement.duration);

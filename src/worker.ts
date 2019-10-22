@@ -11,8 +11,6 @@ interface KerningPair {
 const asciiMaps: Dictionary<Dictionary<number>> = {};
 const kerningPairMaps: Dictionary<Dictionary<KerningPair>> = {};
 
-console.log("init");
-
 function textWidth(rawText: string, font: string): number {
   if (!asciiMaps[font]) {
     throw new Error(`Missing ascii map for font "${font}"`);
@@ -43,6 +41,7 @@ function textWidth(rawText: string, font: string): number {
 }
 
 const worker = {
+  textWidth,
   updateAsciiMap: (font: string, mapping: Dictionary<number>) => {
     asciiMaps[font] = mapping;
   },
