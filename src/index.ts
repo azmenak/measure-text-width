@@ -1,4 +1,5 @@
 import * as Comlink from "comlink";
+import { chunk } from "lodash";
 
 const FONT = '500 14px / 15px "Source Sans Pro", sans-serif';
 const canvas = document.createElement("canvas");
@@ -23,12 +24,8 @@ if (savedWidths) {
 }
 
 performance.mark("ascii-end");
-const measurement = performance.measure(
-  "ASCII measure",
-  "ascii-start",
-  "ascii-end"
-);
-console.log("Measure ASCII", measurement.duration);
+performance.measure("ASCII measure", "ascii-start", "ascii-end");
+performance.clearMarks();
 
 function naiveCalculatedWidth(text: string): number {
   let calculatedWidth = 0;
@@ -71,12 +68,8 @@ if (savedKerningPairs) {
 }
 
 performance.mark("kerning-end");
-const measurementKerning = performance.measure(
-  "Kerning measure",
-  "kerning-start",
-  "kerning-end"
-);
-console.log("Measure Kerning", measurementKerning.duration);
+performance.measure("Kerning measure", "kerning-start", "kerning-end");
+performance.clearMarks();
 
 type Dictionary<T = any> = { [key: string]: T };
 
@@ -177,13 +170,8 @@ async function main() {
     }
 
     performance.mark("local-end");
-    const localMeasurement = performance.measure(
-      "Local",
-      "local-start",
-      "local-end"
-    );
-
-    console.log("Local Baseline", localMeasurement.duration);
+    performance.measure("Local", "local-start", "local-end");
+    performance.clearMarks();
 
     // Baseline
 
@@ -196,13 +184,8 @@ async function main() {
     }
 
     performance.mark("baseline-end");
-    const baselineMeasurement = performance.measure(
-      "Baseline",
-      "baseline-start",
-      "baseline-end"
-    );
-
-    console.log("Measure Baseline", baselineMeasurement.duration);
+    performance.measure("Baseline", "baseline-start", "baseline-end");
+    performance.clearMarks();
 
     // Web Workers
 
@@ -211,16 +194,15 @@ async function main() {
     for (let i = 0; i < RUNS; i++) {
       tests.push(...kerningTests);
     }
-    await proxiedWorker.textWidths(tests, FONT);
+    const chunks = chunk(tests, Math.ceil(tests.length / 4));
+
+    await Promise.all(chunks.map(t => proxiedWorker.textWidths(t, FONT)));
 
     performance.mark("diff-pairs-end");
-    const diffPairsMeasurement = performance.measure(
-      "Diff Paris",
-      "diff-pairs-start",
-      "diff-pairs-end"
-    );
+    performance.measure("Diff Paris", "diff-pairs-start", "diff-pairs-end");
+    performance.clearMarks();
 
-    console.log("Measure Diff Pairs", diffPairsMeasurement.duration);
+    console.log(performance.getEntriesByType("measure"));
   } catch (error) {
     console.error(error);
   }
