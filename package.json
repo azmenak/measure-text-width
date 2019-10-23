@@ -5,6 +5,7 @@
   "license": "MIT",
   "dependencies": {
     "comlink": "^4.0.5",
+    "lodash": "^4.17.15",
     "parcel-bundler": "^1.12.4"
   },
   "devDependencies": {
