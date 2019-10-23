@@ -20,7 +20,9 @@ function textWidth(rawText: string, font: string): number {
     throw new Error(`Missing kerning pair map for font "${font}"`);
   }
 
+  // Remove diacritics from the string
   const text = rawText.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+
   const ascii = asciiMaps[font];
   const kerningPairs = kerningPairMaps[font];
 
