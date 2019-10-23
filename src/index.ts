@@ -115,9 +115,6 @@ function textWidth(rawText: string, font: string): number {
   return naiveCalculatedWidth - kerningDiff;
 }
 
-const worker = new Worker("./worker.ts");
-const proxiedWorker = Comlink.wrap(worker);
-
 const kerningTests = [
   "EMULATION",
   "Moxy",
@@ -139,15 +136,31 @@ const kerningTests = [
 ];
 
 async function main() {
+  performance.mark("setup-workers-start");
+  const workerPool = [];
+  for (let i = 0; i < 4; i++) {
+    workerPool.push(Comlink.wrap(new Worker("./worker.ts")));
+  }
+
   try {
-    await proxiedWorker.updateAsciiMap(FONT, ascii);
-    await proxiedWorker.updateKerningMap(FONT, kerningPairs);
+    const updateTasks = [];
+    for (const worker of workerPool) {
+      updateTasks.push(worker.updateAsciiMap(FONT, ascii));
+      updateTasks.push(worker.updateKerningMap(FONT, kerningPairs));
+    }
+    await Promise.all(updateTasks);
+    performance.mark("setup-workers-end");
+    performance.measure(
+      "Setup Workers",
+      "setup-workers-start",
+      "setup-workers-end"
+    );
 
     const testResults = {};
     for (const test of kerningTests) {
       const actual = context.measureText(test).width;
       const naive = naiveCalculatedWidth(test);
-      const diff = await proxiedWorker.textWidth(test, FONT);
+      const diff = await workerPool[0].textWidth(test, FONT);
 
       testResults[test] = {
         naive: actual - naive,
@@ -157,7 +170,7 @@ async function main() {
 
     console.table(testResults);
 
-    const RUNS = 1000;
+    const RUNS = 10000;
 
     // Local
 
@@ -194,9 +207,10 @@ async function main() {
     for (let i = 0; i < RUNS; i++) {
       tests.push(...kerningTests);
     }
-    const chunks = chunk(tests, Math.ceil(tests.length / 4));
 
-    await Promise.all(chunks.map(t => proxiedWorker.textWidths(t, FONT)));
+    const chunks = chunk(tests, Math.ceil(tests.length / workerPool.length));
+
+    await Promise.all(chunks.map((t, i) => workerPool[i].textWidths(t, FONT)));
 
     performance.mark("diff-pairs-end");
     performance.measure("Diff Paris", "diff-pairs-start", "diff-pairs-end");
