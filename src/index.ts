@@ -71,50 +71,6 @@ performance.mark("kerning-end");
 performance.measure("Kerning measure", "kerning-start", "kerning-end");
 performance.clearMarks();
 
-type Dictionary<T = any> = { [key: string]: T };
-
-interface KerningPair {
-  naive: number;
-  width: number;
-  diff: number;
-}
-
-const asciiMaps: Dictionary<Dictionary<number>> = {
-  [FONT]: ascii
-};
-const kerningPairMaps: Dictionary<Dictionary<KerningPair>> = {
-  [FONT]: kerningPairs
-};
-
-function textWidth(rawText: string, font: string): number {
-  if (!asciiMaps[font]) {
-    throw new Error(`Missing ascii map for font "${font}"`);
-  }
-
-  if (!kerningPairMaps[font]) {
-    throw new Error(`Missing kerning pair map for font "${font}"`);
-  }
-
-  const text = rawText.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
-  const ascii = asciiMaps[font];
-  const kerningPairs = kerningPairMaps[font];
-
-  let naiveCalculatedWidth = 0;
-  let kerningDiff = 0;
-  for (let i = 0; i < text.length; i++) {
-    naiveCalculatedWidth += ascii[text[i]];
-    if (i <= text.length - 2) {
-      const pair = `${text[i]}${text[i + 1]}`;
-      const kerning = kerningPairs[pair];
-      if (kerning) {
-        kerningDiff += kerning.diff;
-      }
-    }
-  }
-
-  return naiveCalculatedWidth - kerningDiff;
-}
-
 const kerningTests = [
   "EMULATION",
   "Moxy",
@@ -170,21 +126,7 @@ async function main() {
 
     console.table(testResults);
 
-    const RUNS = 10000;
-
-    // Local
-
-    performance.mark("local-start");
-
-    for (let i = 0; i < RUNS; i++) {
-      for (const test of kerningTests) {
-        textWidth(test, FONT);
-      }
-    }
-
-    performance.mark("local-end");
-    performance.measure("Local", "local-start", "local-end");
-    performance.clearMarks();
+    const RUNS = 100000;
 
     // Baseline
 
