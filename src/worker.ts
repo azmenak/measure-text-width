@@ -102,6 +102,18 @@ const worker = {
     }
 
     return result;
+  },
+  exTextWidths: (texts: string[], font: string): Dictionary<number> => {
+    const canvas = new OffscreenCanvas(100, 100);
+    const context = canvas.getContext("2d");
+    context.font = font;
+    const result: Dictionary<number> = {};
+
+    for (const text of texts) {
+      result[text] = context.measureText(text).width;
+    }
+
+    return result;
   }
 };
 

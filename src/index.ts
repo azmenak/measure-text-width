@@ -126,7 +126,7 @@ async function main() {
 
     console.table(testResults);
 
-    const RUNS = 100000;
+    const RUNS = 10_000;
 
     // Baseline
 
@@ -144,7 +144,6 @@ async function main() {
 
     // Web Workers
 
-    performance.mark("diff-pairs-start");
     const tests = [];
     for (let i = 0; i < RUNS; i++) {
       tests.push(...kerningTests);
@@ -152,10 +151,28 @@ async function main() {
 
     const chunks = chunk(tests, Math.ceil(tests.length / workerPool.length));
 
+    performance.mark("diff-pairs-start");
+
     await Promise.all(chunks.map((t, i) => workerPool[i].textWidths(t, FONT)));
 
     performance.mark("diff-pairs-end");
     performance.measure("Diff Paris", "diff-pairs-start", "diff-pairs-end");
+    performance.clearMarks();
+
+    // Offscreen Canvas
+
+    performance.mark("offscreen-canvas-start");
+
+    await Promise.all(
+      chunks.map((t, i) => workerPool[i].exTextWidths(t, FONT))
+    );
+
+    performance.mark("offscreen-canvas-end");
+    performance.measure(
+      "Offscreen Canvas",
+      "offscreen-canvas-start",
+      "offscreen-canvas-end"
+    );
     performance.clearMarks();
 
     console.log(performance.getEntriesByType("measure"));
