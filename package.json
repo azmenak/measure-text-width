@@ -4,17 +4,28 @@
   "main": "index.js",
   "license": "MIT",
   "dependencies": {
+    "@types/lodash": "^4.14.144",
+    "@wasm-tool/wasm-pack-plugin": "^1.0.1",
     "comlink": "^4.0.5",
+    "copy-webpack-plugin": "^5.0.4",
+    "html-webpack-plugin": "^3.2.0",
     "lodash": "^4.17.15",
-    "parcel-bundler": "^1.12.4"
+    "parcel-bundler": "^1.12.4",
+    "ts-loader": "^6.2.1",
+    "webpack": "^4.41.2",
+    "webpack-cli": "^3.3.9",
+    "webpack-dev-server": "^3.9.0",
+    "worker-plugin": "^3.2.0"
   },
   "devDependencies": {
+    "@types/copy-webpack-plugin": "^5.0.0",
     "typescript": "^3.6.4"
   },
   "browserslist": [
     "last 1 Chrome version"
   ],
   "scripts": {
-    "start": "parcel src/index.html --hmr-port 1235"
+    "start-parcel": "parcel src/index.html --hmr-port 1235",
+    "start": "webpack-dev-server"
   }
 }

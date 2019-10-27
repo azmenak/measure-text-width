@@ -1,5 +1,6 @@
 {
   "compilerOptions": {
+    "sourceMap": true,
     "module": "esnext",
     "target": "es2017",
     "noUnusedLocals": true,

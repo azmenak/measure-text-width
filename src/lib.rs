@@ -1,9 +1,11 @@
+extern crate serde_derive;
+
 mod utils;
 
-use std::cell::RefCell;
-use std::collections::HashMap;
-use std::rc::Rc;
+use hashbrown::HashMap;
 use wasm_bindgen::prelude::*;
+
+extern crate web_sys;
 
 // When the `wee_alloc` feature is enabled, use `wee_alloc` as the global
 // allocator.
@@ -30,12 +32,15 @@ impl FontMap {
 
 #[wasm_bindgen]
 pub struct FontWidths {
-    font_maps: Rc<RefCell<HashMap<String, Rc<RefCell<FontMap>>>>>,
+    font_maps: HashMap<String, FontMap>,
 }
 
+#[wasm_bindgen]
 impl FontWidths {
     pub fn new() -> FontWidths {
-        let font_maps = Rc::new(RefCell::new(HashMap::new()));
+        utils::set_panic_hook();
+
+        let font_maps = HashMap::new();
 
         FontWidths { font_maps }
     }
@@ -43,66 +48,73 @@ impl FontWidths {
 
 #[wasm_bindgen]
 impl FontWidths {
-    pub fn create_ascii_map(&mut self, font: String, widths: &[f64]) {
-        let mut font_maps_ref = self.font_maps.borrow_mut();
-        let font_map = font_maps_ref
-            .entry(font)
-            .or_insert(Rc::new(RefCell::new(FontMap::new())));
-        let mut font_map_ref = font_map.borrow_mut();
-        for i in 0..font_map_ref.ascii_map.len() {
-            font_map_ref.ascii_map[i] = widths[i]
+    pub fn create_ascii_map(&mut self, font: String, widths: Box<[f64]>) {
+        let font_map = self.font_maps.entry(font).or_insert(FontMap::new());
+        for i in 0..font_map.ascii_map.len() {
+            font_map.ascii_map[i] = widths[i]
         }
     }
 
-    pub fn create_kerning_map(&mut self, font: String, key_map: &[u8], diff_map: &[f64]) {
-        let mut font_maps_ref = self.font_maps.borrow_mut();
-        let font_map = font_maps_ref
-            .entry(font)
-            .or_insert(Rc::new(RefCell::new(FontMap::new())));
-        let mut font_map_ref = font_map.borrow_mut();
+    pub fn create_kerning_map(&mut self, font: String, key_map: Box<[u8]>, diff_map: Box<[f64]>) {
+        let font_map = self.font_maps.entry(font).or_insert(FontMap::new());
         let mut i = 0;
         while i < key_map.len() {
             let mut key = String::with_capacity(2);
             key.push(key_map[i] as char);
             key.push(key_map[i + 1] as char);
-            font_map_ref.kerning_pair_map.insert(key, diff_map[i]);
+            font_map.kerning_pair_map.insert(key, diff_map[i]);
             i += 2
         }
     }
 
-    pub fn text_width(self, font: String, text: String) -> f64 {
-        let font_maps_ref = self.font_maps.borrow();
-        if let Some(font_map) = font_maps_ref.get(&font) {
-            let font_map_ref = font_map.borrow();
-            let ascii = font_map_ref.ascii_map;
+    pub fn text_widths(&self, font: String, val: &JsValue) -> Vec<f64> {
+        if let Some(font_map) = self.font_maps.get(&font) {
+            let text_list: Vec<String> = val.into_serde().unwrap();
+            let mut results = Vec::with_capacity(text_list.len());
+            for text in text_list {
+                results.push(self.text_width_for_font_map(&font_map, &text));
+            }
+            return results;
+        } else {
+            return vec![];
+        }
+    }
 
-            let mut char_width = 0.0;
-            let mut kerning_width = 0.0;
+    fn text_width_for_font_map(&self, font_map: &FontMap, text: &String) -> f64 {
+        let ascii = font_map.ascii_map;
 
-            let mut prev_char: Option<char> = None;
-            for c in text.chars() {
-                if !c.is_ascii() {
-                    continue;
-                }
+        let mut char_width = 0.0;
+        let mut kerning_width = 0.0;
 
-                let mut b = [0; 1];
-                c.encode_utf8(&mut b);
-                let char_index = b[0] - 32;
-
-                char_width += ascii[char_index as usize];
-                if let Some(pc) = prev_char.take() {
-                    let mut key = String::with_capacity(2);
-                    key.push(pc);
-                    key.push(c);
-                    if let Some(kern) = font_map_ref.kerning_pair_map.get(&key) {
-                        kerning_width += kern
-                    }
-                }
-
-                prev_char = Some(c)
+        let mut prev_char: Option<char> = None;
+        for c in text.chars() {
+            if !c.is_ascii() {
+                continue;
             }
 
-            return char_width - kerning_width;
+            let mut b = [0; 1];
+            c.encode_utf8(&mut b);
+            let char_index = b[0] - 32;
+
+            char_width += ascii[char_index as usize];
+            if let Some(pc) = prev_char.take() {
+                let mut key = String::with_capacity(2);
+                key.push(pc);
+                key.push(c);
+                if let Some(kern) = font_map.kerning_pair_map.get(&key) {
+                    kerning_width += kern
+                }
+            }
+
+            prev_char = Some(c)
+        }
+
+        return char_width - kerning_width;
+    }
+
+    pub fn text_width(&self, font: String, text: String) -> f64 {
+        if let Some(font_map) = self.font_maps.get(&font) {
+            return self.text_width_for_font_map(&font_map, &text);
         } else {
             return 0.0;
         }

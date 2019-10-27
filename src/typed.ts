@@ -1,10 +1,8 @@
-import * as wasm from "../pkg/wasm";
-
-console.log(wasm);
+import * as Comlink from "comlink";
+import { chunk } from "lodash";
 
 const FONT = '500 14px / 15px "Source Sans Pro", sans-serif';
 
-const fontWidths = new wasm.FontWidths();
 const context = document.createElement("canvas").getContext("2d");
 
 const savedWidths = new Float64Array(95);
@@ -75,9 +73,6 @@ for (let i = 0; i < kerningSize; i++) {
   diffMap[i] = diff;
 }
 
-fontWidths.create_ascii_map(FONT, savedWidths);
-fontWidths.create_kerning_map(FONT, keyMap, diffMap);
-
 const kerningTests = [
   "EMULATION",
   "Moxy",
@@ -96,16 +91,61 @@ const kerningTests = [
   "Sit Doloret",
   "Morbi lacinia consectetur eleifend. Pellentesque feugiat consectetur nulla, eu ullamcorper magna blandit eget. Nullam pellentesque libero non dignissim pellentesque. Nunc lacinia porta dui, eget blandit mauris semper et. Sed at viverra libero, quis consectetur quam. Mauris tincidunt nunc a velit finibus maximus. Sed sed pretium ligula. Pellentesque habitant morbi tristique senectus et netus et malesuada fames ac turpis egestas. Phasellus id gravida nibh.",
   "AV BA"
+  // "école"
 ];
 
-const testResults = {};
-for (const test of kerningTests) {
-  const actual = context.measureText(test).width;
-  const wasm = fontWidths.text_width(FONT, test);
+// const testResults = {};
+// for (const test of kerningTests) {
+//   const actual = context.measureText(test).width;
+//   const wasm = fontWidths.text_width(FONT, test);
 
-  testResults[test] = {
-    diff: actual - wasm
-  };
+//   testResults[test] = {
+//     diff: actual - wasm
+//   };
+// }
+
+// console.table(testResults);
+
+// performance.mark("wasm-start");
+
+const RUNS = 100_000;
+const tests: string[] = [];
+for (let i = 0; i < RUNS; i++) {
+  tests.push(...kerningTests);
 }
 
-console.table(testResults);
+// console.log(fontWidths.text_widths(FONT, tests));
+
+// performance.mark("wasm-end");
+// performance.measure("WASM", "wasm-start", "wasm-end");
+
+const workerPool = [];
+for (let i = 0; i < 4; i++) {
+  workerPool.push(
+    Comlink.wrap(new Worker("./wasm-worker.ts", { type: "module" }))
+  );
+}
+
+async function test() {
+  await Promise.all(
+    workerPool.map(worker => worker.setup(FONT, savedWidths, keyMap, diffMap))
+  );
+
+  performance.mark("wasm-worker-start");
+
+  const chunks: string[][] = chunk(
+    tests,
+    Math.ceil(tests.length / workerPool.length)
+  );
+
+  await Promise.all(
+    chunks.map((texts, i) => {
+      return workerPool[i].textWidths(FONT, texts);
+    })
+  );
+  performance.mark("wasm-worker-end");
+  performance.measure("WASM Workers", "wasm-worker-start", "wasm-worker-end");
+  console.log(performance.getEntriesByType("measure"));
+}
+
+test();
