@@ -114,6 +114,33 @@ for (let i = 0; i < RUNS; i++) {
   tests.push(...kerningTests);
 }
 
+// Create a typed array representation of the tests array
+performance.mark("encode-strings-start");
+const stringsMap = new Uint32Array(tests.length);
+let sizeEstimate = 0;
+for (let i = 0; i < tests.length; i++) {
+  sizeEstimate += tests[i].length;
+}
+
+const encoder = new TextEncoder();
+const stringsBuffer = new ArrayBuffer(sizeEstimate * 2);
+let ptr = 0;
+for (let i = 0; i < tests.length; i++) {
+  const textView = encoder.encode(tests[i]);
+  const view = new Uint8Array(stringsBuffer, ptr, textView.length);
+  for (let j = 0; j < view.length; j++) {
+    view[j] = textView[j];
+  }
+  ptr += textView.length;
+  stringsMap[i] = textView.length;
+}
+performance.mark("encode-strings-end");
+performance.measure(
+  "Encode Strings",
+  "encode-strings-start",
+  "encode-strings-end"
+);
+
 // console.log(fontWidths.text_widths(FONT, tests));
 
 // performance.mark("wasm-end");
@@ -131,12 +158,12 @@ async function test() {
     workerPool.map(worker => worker.setup(FONT, savedWidths, keyMap, diffMap))
   );
 
-  performance.mark("wasm-worker-start");
-
   const chunks: string[][] = chunk(
     tests,
     Math.ceil(tests.length / workerPool.length)
   );
+
+  performance.mark("wasm-worker-start");
 
   await Promise.all(
     chunks.map((texts, i) => {
@@ -145,6 +172,20 @@ async function test() {
   );
   performance.mark("wasm-worker-end");
   performance.measure("WASM Workers", "wasm-worker-start", "wasm-worker-end");
+
+  performance.mark("offscreen-canvas-start");
+  await Promise.all(
+    chunks.map((texts, i) => {
+      return workerPool[i].exTextWidths(FONT, texts);
+    })
+  );
+  performance.mark("offscreen-canvas-end");
+  performance.measure(
+    "Canvas Workers",
+    "offscreen-canvas-start",
+    "offscreen-canvas-end"
+  );
+
   console.log(performance.getEntriesByType("measure"));
 }
 
