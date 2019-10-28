@@ -74,6 +74,11 @@ for (let i = 0; i < kerningSize; i++) {
 }
 
 const kerningTests = [
+  "1",
+  "12",
+  "123",
+  "1234",
+  "12345",
   "EMULATION",
   "Moxy",
   "MOXY",
