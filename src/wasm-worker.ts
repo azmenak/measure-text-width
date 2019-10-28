@@ -22,9 +22,16 @@ const worker = {
     });
   },
   textWidths(font: string, texts: string[]) {
-    fontWidths.text_widths(font, texts);
+    const result: Dictionary<number> = {};
+    const widths = fontWidths.text_widths(font, texts);
+
+    for (let i = 0; i < texts.length; i++) {
+      result[texts[i]] = widths[i];
+    }
+
+    return result;
   },
-  exTextWidths: (font: string, texts: string[]): Dictionary<number> => {
+  exTextWidths: (font: string, texts: string[]) => {
     const canvas = new OffscreenCanvas(100, 100);
     const context = canvas.getContext("2d");
     context.font = font;
