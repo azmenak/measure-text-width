@@ -1,8 +1,10 @@
 extern crate serde_derive;
+extern crate unidecode;
 
 mod utils;
 
 use hashbrown::HashMap;
+use unidecode::unidecode;
 use wasm_bindgen::prelude::*;
 
 extern crate web_sys;
@@ -85,13 +87,10 @@ impl FontWidths {
 
         let mut char_width = 0.0;
         let mut kerning_width = 0.0;
+        let ascii_text = unidecode(text);
 
         let mut prev_char: Option<char> = None;
-        for c in text.chars() {
-            if !c.is_ascii() {
-                continue;
-            }
-
+        for c in ascii_text.chars() {
             let mut b = [0; 1];
             c.encode_utf8(&mut b);
             let char_index = b[0] - 32;

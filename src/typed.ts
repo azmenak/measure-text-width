@@ -90,23 +90,10 @@ const kerningTests = [
   "Lorem Ipsum",
   "Sit Doloret",
   "Morbi lacinia consectetur eleifend. Pellentesque feugiat consectetur nulla, eu ullamcorper magna blandit eget. Nullam pellentesque libero non dignissim pellentesque. Nunc lacinia porta dui, eget blandit mauris semper et. Sed at viverra libero, quis consectetur quam. Mauris tincidunt nunc a velit finibus maximus. Sed sed pretium ligula. Pellentesque habitant morbi tristique senectus et netus et malesuada fames ac turpis egestas. Phasellus id gravida nibh.",
-  "AV BA"
-  // "école"
+  "AV BA",
+  "école",
+  "ecole"
 ];
-
-// const testResults = {};
-// for (const test of kerningTests) {
-//   const actual = context.measureText(test).width;
-//   const wasm = fontWidths.text_width(FONT, test);
-
-//   testResults[test] = {
-//     diff: actual - wasm
-//   };
-// }
-
-// console.table(testResults);
-
-// performance.mark("wasm-start");
 
 const RUNS = 100_000;
 const tests: string[] = [];
@@ -114,40 +101,8 @@ for (let i = 0; i < RUNS; i++) {
   tests.push(...kerningTests);
 }
 
-// Create a typed array representation of the tests array
-performance.mark("encode-strings-start");
-const stringsMap = new Uint32Array(tests.length);
-let sizeEstimate = 0;
-for (let i = 0; i < tests.length; i++) {
-  sizeEstimate += tests[i].length;
-}
-
-const encoder = new TextEncoder();
-const stringsBuffer = new ArrayBuffer(sizeEstimate * 2);
-let ptr = 0;
-for (let i = 0; i < tests.length; i++) {
-  const textView = encoder.encode(tests[i]);
-  const view = new Uint8Array(stringsBuffer, ptr, textView.length);
-  for (let j = 0; j < view.length; j++) {
-    view[j] = textView[j];
-  }
-  ptr += textView.length;
-  stringsMap[i] = textView.length;
-}
-performance.mark("encode-strings-end");
-performance.measure(
-  "Encode Strings",
-  "encode-strings-start",
-  "encode-strings-end"
-);
-
-// console.log(fontWidths.text_widths(FONT, tests));
-
-// performance.mark("wasm-end");
-// performance.measure("WASM", "wasm-start", "wasm-end");
-
 const workerPool = [];
-for (let i = 0; i < 4; i++) {
+for (let i = 0; i < 8; i++) {
   workerPool.push(
     Comlink.wrap(new Worker("./wasm-worker.ts", { type: "module" }))
   );
@@ -157,6 +112,9 @@ async function test() {
   await Promise.all(
     workerPool.map(worker => worker.setup(FONT, savedWidths, keyMap, diffMap))
   );
+
+  const results = await workerPool[0].textWidths(FONT, kerningTests);
+  console.table(results);
 
   const chunks: string[][] = chunk(
     tests,
