@@ -7,21 +7,7 @@
       "label": "WASM-pack build",
       "type": "shell",
       "command": "wasm-pack build",
-      "problemMatcher": [
-        "$rustc"
-      ],
-      "group": {
-        "kind": "build",
-        "isDefault": true
-      }
-    },
-    {
-      "label": "WASM-pack debug",
-      "type": "shell",
-      "command": "wasm-pack build --dev",
-      "problemMatcher": [
-        "$rustc"
-      ],
+      "problemMatcher": ["$rustc"],
       "group": {
         "kind": "build",
         "isDefault": true
