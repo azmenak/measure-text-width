@@ -9,12 +9,6 @@ use wasm_bindgen::prelude::*;
 
 extern crate web_sys;
 
-// When the `wee_alloc` feature is enabled, use `wee_alloc` as the global
-// allocator.
-#[cfg(feature = "wee_alloc")]
-#[global_allocator]
-static ALLOC: wee_alloc::WeeAlloc = wee_alloc::WeeAlloc::INIT;
-
 struct FontMap {
     ascii_map: [f64; 95],
     kerning_pair_map: HashMap<String, f64>,
