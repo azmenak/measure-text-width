@@ -4,6 +4,7 @@ const WasmPackPlugin = require("@wasm-tool/wasm-pack-plugin");
 const path = require("path");
 
 const appConfig = {
+  devtool: "cheap-module-eval-source-map",
   entry: "./src/typed.ts",
   output: {
     path: path.resolve(__dirname, "dist"),
@@ -15,11 +16,20 @@ const appConfig = {
     extensions: [".ts", ".tsx", ".js"]
   },
   module: {
-    rules: [{ test: /\.tsx?$/, loader: "ts-loader" }]
+    rules: [
+      {
+        test: /\.tsx?$/,
+        loader: "ts-loader",
+        options: {
+          transpileOnly: true
+        }
+      }
+    ]
   }
 };
 
 const workerConfig = {
+  devtool: "cheap-module-eval-source-map",
   entry: "./src/wasm-worker.ts",
   target: "webworker",
   plugins: [
@@ -32,7 +42,9 @@ const workerConfig = {
     extensions: [".ts", ".js", ".wasm"]
   },
   module: {
-    rules: [{ test: /\.tsx?$/, loader: "ts-loader" }]
+    rules: [
+      { test: /\.tsx?$/, loader: "ts-loader", options: { transpileOnly: true } }
+    ]
   },
   output: {
     path: path.resolve(__dirname, "dist"),
