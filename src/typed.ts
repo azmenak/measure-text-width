@@ -1,9 +1,10 @@
 import * as Comlink from "comlink";
-import { chunk } from "lodash";
+import { chunk, isEqual } from "lodash";
 
 const FONT = '500 14px / 15px "Source Sans Pro", sans-serif';
 
 const context = document.createElement("canvas").getContext("2d");
+context.font = FONT;
 
 const savedWidths = new Float64Array(95);
 
@@ -38,7 +39,7 @@ const kerningDiffs: { [key: string]: number } = {};
 
 for (let i = 0; i < savedWidths.length; i++) {
   const charA = String.fromCharCode(i + 32);
-  for (let j = 0; i < savedWidths.length; i++) {
+  for (let j = 0; j < savedWidths.length; j++) {
     const charB = String.fromCharCode(j + 32);
     const pair = `${charA}${charB}`;
     const kerningDiff = measureKerningDiff(pair);
@@ -48,30 +49,21 @@ for (let i = 0; i < savedWidths.length; i++) {
   }
 }
 
-const ENTRY_SIZE = 10; // 2 bytes for key, 8 bytes for float value
 const kerningSize = Object.keys(kerningDiffs).length;
-
-const buffer = new ArrayBuffer(ENTRY_SIZE * kerningSize);
+const kerningEntries = Object.entries(kerningDiffs);
 const keyMap = new Uint8Array(kerningSize * 2);
 const diffMap = new Float64Array(kerningSize);
-
-const kerningEntries = Object.entries(kerningDiffs);
 for (let i = 0; i < kerningSize; i++) {
-  let bufferIndex = i * ENTRY_SIZE;
-  const [key, diff] = kerningEntries[0];
-
-  const keyView = new Uint8Array(buffer, bufferIndex, 2);
-  keyView[0] = key.charCodeAt(0);
-  keyView[1] = key.charCodeAt(1);
-
-  keyMap[i] = keyView[0];
-  keyMap[i + 1] = keyView[1];
-
-  const diffView = new Float64Array(buffer, bufferIndex + 2, 8);
-  diffView[0] = diff;
+  const [key, diff] = kerningEntries[i];
 
   diffMap[i] = diff;
+
+  keyMap[i * 2] = key.charCodeAt(0);
+  keyMap[i * 2 + 1] = key.charCodeAt(1);
 }
+
+console.log(keyMap);
+console.log(diffMap);
 
 const kerningTests = [
   "1",
@@ -100,7 +92,7 @@ const kerningTests = [
   "ecole"
 ];
 
-const RUNS = 100_000;
+const RUNS = 10_000;
 const tests: string[] = [];
 for (let i = 0; i < RUNS; i++) {
   tests.push(...kerningTests);
@@ -119,7 +111,11 @@ async function test() {
   );
 
   const results = await workerPool[0].textWidths(FONT, kerningTests);
+  const canvasResults = await workerPool[0].exTextWidths(FONT, kerningTests);
+
   console.table(results);
+  console.table(canvasResults);
+  console.log(isEqual(results, canvasResults));
 
   const chunks: string[][] = chunk(
     tests,

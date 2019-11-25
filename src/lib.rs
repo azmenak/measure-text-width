@@ -54,12 +54,12 @@ impl FontWidths {
     pub fn create_kerning_map(&mut self, font: String, key_map: Box<[u8]>, diff_map: Box<[f64]>) {
         let font_map = self.font_maps.entry(font).or_insert(FontMap::new());
         let mut i = 0;
-        while i < key_map.len() {
+        while i < diff_map.len() {
             let mut key = String::with_capacity(2);
-            key.push(key_map[i] as char);
-            key.push(key_map[i + 1] as char);
+            key.push(key_map[i * 2] as char);
+            key.push(key_map[(i * 2) + 1] as char);
             font_map.kerning_pair_map.insert(key, diff_map[i]);
-            i += 2
+            i += 1
         }
     }
 
