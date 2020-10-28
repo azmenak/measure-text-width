@@ -42,52 +42,53 @@ function textWidth(rawText: string, font: string): number {
   return naiveCalculatedWidth - kerningDiff;
 }
 
-// function optimizeTextWidthAcrossTwoLines(text: string, font: string) {
-//   // Split the text into its components
-//   const parts = text.split(" ");
-//   // Measure the width of each text part
-//   const widths = parts.map(part => {
-//     return textWidth(part, font);
-//   });
+function optimizeTextWidthAcrossTwoLines(text: string, font: string) {
+  // Split the text into its components
+  const parts = text.split(" ");
+  // Measure the width of each text part
+  const widths = parts.map((part) => {
+    return textWidth(part, font);
+  });
 
-//   const permutations = [];
-//   for (let i = 0; i < widths.length; i++) {
-//     const lines = [widths.slice(0, i + 1), widths.slice(i + 1)];
-//     const lineLengths = lines.map(line => {
-//       if (line.length === 0) {
-//         return 0;
-//       }
+  const permutations = [];
+  for (let i = 0; i < widths.length; i++) {
+    const lines = [widths.slice(0, i + 1), widths.slice(i + 1)];
+    const lineLengths = lines.map((line) => {
+      if (line.length === 0) {
+        return 0;
+      }
 
-//       const textWidth = line.reduce((sum, word) => sum + word, 0);
-//       return textWidth + asciiMaps[font][" "] * (line.length - 1);
-//     });
-//     const difference = Math.abs(lineLengths[0] - lineLengths[1]);
-//     const containerWidth = Math.max(...lineLengths);
+      const textWidth = line.reduce((sum, word) => sum + word, 0);
+      return textWidth + asciiMaps[font][" "] * (line.length - 1);
+    });
+    const difference = Math.abs(lineLengths[0] - lineLengths[1]);
+    const containerWidth = Math.max(...lineLengths);
 
-//     permutations.push({
-//       lines,
-//       difference,
-//       lineLengths,
-//       containerWidth
-//     });
-//   }
+    permutations.push({
+      lines,
+      difference,
+      lineLengths,
+      containerWidth,
+    });
+  }
 
-//   let optimialPermutation;
-//   for (const permutation of permutations) {
-//     if (!optimialPermutation) {
-//       optimialPermutation = permutation;
-//     } else if (
-//       permutation.containerWidth < optimialPermutation.containerWidth
-//     ) {
-//       optimialPermutation = permutation;
-//     }
-//   }
+  let optimialPermutation;
+  for (const permutation of permutations) {
+    if (!optimialPermutation) {
+      optimialPermutation = permutation;
+    } else if (
+      permutation.containerWidth < optimialPermutation.containerWidth
+    ) {
+      optimialPermutation = permutation;
+    }
+  }
 
-//   return optimialPermutation;
-// }
+  return optimialPermutation;
+}
 
 const worker = {
   textWidth,
+  optimizeTextWidthAcrossTwoLines,
   updateAsciiMap: (font: string, mapping: Dictionary<number>) => {
     asciiMaps[font] = mapping;
   },
@@ -114,7 +115,7 @@ const worker = {
     }
 
     return result;
-  }
+  },
 };
 
 Comlink.expose(worker);
